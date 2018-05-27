@@ -145,6 +145,60 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   and the following is a good resource for the actual equation to implement (look at equation 
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
+
+
+	/* transform map_landmarks (class Map) to landmarks vector to be able to use them in dataAssociation() */
+	std::vector< LandmarkObs > vLandmarksMap;
+	for( int i = 0; i < map_landmarks.landmark_list.size(); ++i )
+	{
+		LandmarkObs l = { i, map_landmarks.landmark_list[ i ].x_f, map_landmarks.landmark_list[ i ].y_f };
+		vLandmarksMap.push_back( l );
+	}
+
+	/* iterate through all particles and update weights */
+	for( int i = 0; i < particles.size(); ++i )
+	{
+		Particle& p = particles[ i ];
+
+		/* transform observations to map coordinates for the current particle */
+		std::vector< LandmarkObs > observations_map;
+		for( int j = 0; j < observations.size(); ++j )
+		{
+			const LandmarkObs& o = observations[ j ];
+
+			double x_map = p.x + cos( p.theta ) * o.x - sin( p.theta ) * o.y;
+			double y_map = p.y + sin( p.theta ) * o.x - cos( p.theta ) * o.y;
+
+			observations_map.push_back( { j, x_map, y_map } );
+		}
+
+		/* associate observations to closest landmarks in the map */
+		std::vector< LandmarkObs > observations_map_associations = observations_map;
+		dataAssociation( vLandmarksMap, observations_map_associations );
+
+		/* update weight of the particle */
+		const double std_x = std_landmark[ 0 ];
+		const double std_y = std_landmark[ 1 ];
+		const double gauss_norm = ( 1.0 / ( 2 * M_PI * std_x * std_y ) );		// calculate normalization term
+		double weight = 1.0f;
+		
+		for( int j = 0; j < observations_map.size(); ++j )
+		{
+			const LandmarkObs& o = observations_map[ j ];				// observed landmark in map coordinate system
+			const LandmarkObs& u = observations_map_associations[ j ];	// nearest landmark in map coordinate system
+			// calculate exponent
+			double exponent = pow( ( o.x - u.x ), 2 ) / ( 2 * std_x * std_x ) + pow( ( o.y - u.y ), 2 ) / ( 2 * std_y * std_y );
+
+			//	calculate weight using normalization terms and exponent
+			weight = weight * ( gauss_norm * exp( -exponent ) );
+		}
+
+		weights[ i ] = weight;
+		particles[ i ].weight = weight;
+	}
+
+	/* normalizing weights */
+	//int max 
 }
 
 void ParticleFilter::resample() {
