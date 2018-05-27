@@ -26,7 +26,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[])
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 
-	num_particles = 50;
+	num_particles = 30;
 
 	/* store standard deviations for easier usage */
 	const double std_x		= std[ 0 ];
@@ -75,8 +75,8 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 		}
 		else                                    // yaw rate != 0
 		{
-			p.x = p.x + velocity / yaw_rate * ( sin( p.theta + yaw_rate * delta_t ) - sin( p.theta ) );
-			p.y = p.y + velocity / yaw_rate * ( cos( p.theta ) - cos( p.theta + yaw_rate * delta_t ) );
+			p.x = p.x + ( velocity / yaw_rate ) * ( sin( p.theta + yaw_rate * delta_t ) - sin( p.theta ) );
+			p.y = p.y + ( velocity / yaw_rate ) * ( cos( p.theta ) - cos( p.theta + yaw_rate * delta_t ) );
 			p.theta = p.theta + yaw_rate * delta_t;
 		}
 	}
@@ -187,7 +187,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			const LandmarkObs& o = observations[ j ];
 
 			double x_map = p.x + cos( p.theta ) * o.x - sin( p.theta ) * o.y;
-			double y_map = p.y + sin( p.theta ) * o.x - cos( p.theta ) * o.y;
+			double y_map = p.y + sin( p.theta ) * o.x + cos( p.theta ) * o.y;
 
 			observations_map.push_back( { j, x_map, y_map } );
 		}
@@ -207,7 +207,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			const LandmarkObs& o = observations_map[ j ];				// observed landmark in map coordinate system
 			const LandmarkObs& u = observations_map_associations[ j ];	// nearest landmark in map coordinate system
 			// calculate exponent
-			double exponent = pow( ( o.x - u.x ), 2 ) / ( 2 * std_x * std_x ) + pow( ( o.y - u.y ), 2 ) / ( 2 * std_y * std_y );
+			double exponent = pow( ( o.x - u.x ), 2 ) / ( 2 * std_x * std_x ) 
+							+ pow( ( o.y - u.y ), 2 ) / ( 2 * std_y * std_y );
 
 			//	calculate weight using normalization terms and exponent
 			weight = weight * ( gauss_norm * exp( -exponent ) );
@@ -218,12 +219,18 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	}
 
 	/* normalizing weights */
-	//int max 
-	const double max = *std::max_element( weights.begin(), weights.end() );
-	const double min = *std::min_element( weights.begin(), weights.end() );
+	double sum = 0.0;
 	for( int i = 0; i < weights.size(); ++i )
 	{
+		sum += weights[ i ];
+	}
+	const double maxW = *std::max_element( weights.begin(), weights.end() );
+	const double minW = *std::min_element( weights.begin(), weights.end() );
+	for( int i = 0; i < weights.size(); ++i )
+	{
+		double normWeight = weights[ i ] / sum;
 
+		weights[ i ] = normWeight;
 	}
 }
 
@@ -234,7 +241,7 @@ void ParticleFilter::resample()
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
 
 	default_random_engine gen;
-	discrete_distribution< int > dis_dist( 0, int( weights.size() ) );
+	discrete_distribution< int > dis_dist( weights.begin(), weights.end() );
 
 	double max_weight = *std::max_element( weights.begin(), weights.end() );
 	double beta = 0.0;
