@@ -84,6 +84,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 
 	// add random Gaussian noise to all particles
 	/* store standard deviations for easier usage */
+#if 0 // old version
 	const double std_x		= std_pos[ 0 ];
 	const double std_y		= std_pos[ 1 ];
 	const double std_yaw	= std_pos[ 2 ];
@@ -102,6 +103,25 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 		p.y = dist_y( gen );
 		p.theta = dist_theta( gen );
 	}
+#else   // new version 
+	const double std_x = std_pos[ 0 ];
+	const double std_y = std_pos[ 1 ];
+	const double std_yaw = std_pos[ 2 ];
+
+	default_random_engine gen;
+	normal_distribution< double > dist_x( 0, std_x );
+	normal_distribution< double > dist_y( 0, std_y );
+	normal_distribution< double > dist_theta( 0, std_yaw );
+
+	for( int i = 0; i < particles.size(); ++i )
+	{
+		Particle& p = particles[ i ];
+
+		p.x += dist_x( gen );
+		p.y += dist_y( gen );
+		p.theta += dist_theta( gen );
+	}
+#endif
 }
 
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
