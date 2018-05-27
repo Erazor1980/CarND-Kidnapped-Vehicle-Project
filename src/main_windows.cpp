@@ -195,7 +195,7 @@ int main()
 
 	int port = 4567;
 	auto host = "127.0.0.1";
-	if( h.listen( port ) )
+	if( h.listen( host, port ) )
 	{
 		std::cout << "Listening to port " << port << std::endl;
 	}
